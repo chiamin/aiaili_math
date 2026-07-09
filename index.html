@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>大數練習</title>
+<style>
+  :root {
+    --bg:      #f6f7f9;
+    --surface: #ffffff;
+    --ink:     #2c2f36;
+    --muted:   #9aa0ab;
+    --line:    #e6e8ec;
+    --accent:  #4a6b8a;       /* 沉穩藍灰，主強調色 */
+    --accent-soft: #eef2f6;
+    --hint:    #c6792f;       /* 提示暖褐 */
+    --ok:      #4f9d6e;
+    --no:      #c46a6a;
+    /* 位值表用的分級色：個級(藍) / 萬級(橙) */
+    --grp-ind: #3b7bd0;
+    --grp-ind-soft: #eaf2fc;
+    --grp-wan: #d98a2b;
+    --grp-wan-soft: #fbf1e3;
+    --radius:  14px;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html {
+    /* 根字級綁定 frame 高度，讓版面在任何視窗都等比縮放（同 area 的作法） */
+    font-size: calc(min(100vh, 133.333vw) * 0.015625);
+  }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: "Inter", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    color: var(--ink);
+    background: #e9ebef;
+    -webkit-user-select: none; user-select: none;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+  button {
+    touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    font-family: inherit;
+  }
+
+  /* 固定 iPad 直向 3:4 舞台 */
+  #frame {
+    position: absolute; inset: 0; margin: auto;
+    width:  min(100vw, 75vh);
+    height: min(100vh, 133.333vw);
+    background: var(--bg);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.05);
+  }
+
+  /* ────────────────────────────────────────────
+     首頁
+     ──────────────────────────────────────────── */
+  #home {
+    height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1.25rem; padding: 1.5rem;
+    overflow: auto;
+    position: relative;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(120,140,180,0.07) 1px, transparent 0) 0 0 / 22px 22px,
+      linear-gradient(165deg, #fef6fb 0%, #f3f7fe 50%, #eefaf6 100%);
+  }
+  #home::before, #home::after {
+    content: ''; position: absolute; border-radius: 50%;
+    filter: blur(36px); opacity: 0.5; pointer-events: none; z-index: 0;
+  }
+  #home::before { width: 14rem; height: 14rem; top: -3rem; left: -3rem;
+    background: radial-gradient(circle, #ffd9ea, transparent 70%); }
+  #home::after  { width: 16rem; height: 16rem; bottom: -4rem; right: -3rem;
+    background: radial-gradient(circle, #cfe8ff, transparent 70%); }
+  #home > * { position: relative; z-index: 1; }
+
+  #home .kicker {
+    font-size: 1.2rem; color: var(--accent); font-weight: 600;
+    letter-spacing: 0.15em; margin-bottom: -0.5rem;
+  }
+  #home h1 {
+    font-size: 3.2rem; font-weight: 800; letter-spacing: 0.06em;
+    margin: 0 0 0.25rem;
+    color: var(--accent);
+  }
+  #home .sub { font-size: 1.25rem; color: var(--muted); margin: 0 0 0.5rem; }
+
+  /* 首頁位值示範表：九位數對齊「個十百千萬…億」 */
+  .placedemo {
+    width: 100%; max-width: 30rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    padding: 0.9rem 0.8rem 0.7rem;
+    box-shadow: 0 4px 14px rgba(70,107,138,0.08);
+    margin-bottom: 0.3rem;
+  }
+  .placedemo-grid {
+    display: grid; grid-template-columns: repeat(9, 1fr);
+    gap: 0.2rem;
+  }
+  .pd-cell {
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer; border-radius: 0.5rem;
+    padding: 0.1rem 0; transition: background .15s;
+  }
+  .pd-cell:hover { background: var(--accent-soft); }
+  .pd-digit {
+    font-size: 1.9rem; font-weight: 800; line-height: 1.2;
+    color: var(--ink);
+    width: 100%; text-align: center;
+    border-bottom: 2px solid var(--line);
+    transition: color .15s, border-color .15s;
+  }
+  .pd-name {
+    font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem;
+    transition: color .15s;
+  }
+  /* 分節底色：個級(藍)、萬級(橙)、億(綠) */
+  .pd-cell.g-ind .pd-name { color: var(--grp-ind); }
+  .pd-cell.g-wan .pd-name { color: var(--grp-wan); }
+  .pd-cell.g-yi  .pd-name { color: #4f9d6e; }
+  /* 高亮某一位 */
+  .pd-cell.on .pd-digit { color: var(--accent); border-color: var(--accent); }
+  .pd-cell.on .pd-name  { color: var(--accent); }
+  .pd-cell.on { background: var(--accent-soft); }
+  /* 分節虛線（萬、億 左邊） */
+  .pd-cell.sep { position: relative; }
+  .pd-cell.sep::before {
+    content: ''; position: absolute; left: -0.1rem; top: 0.1rem; bottom: 1.2rem;
+    border-left: 1px dashed var(--line);
+  }
+  .placedemo-caption {
+    font-size: 1.05rem; color: var(--muted); text-align: center;
+    margin-top: 0.6rem; min-height: 1.4rem; line-height: 1.4;
+  }
+  .placedemo-caption b { color: var(--accent); font-weight: 700; }
+  .placedemo-reroll {
+    display: block; margin: 0.5rem auto 0;
+    border: 1px solid var(--line); background: var(--bg);
+    border-radius: 0.6rem; padding: 0.35rem 0.9rem;
+    font-size: 0.95rem; color: var(--accent); cursor: pointer;
+  }
+  .placedemo-reroll:hover { border-color: var(--accent); }
+  .placedemo-reroll:active { transform: translateY(1px); }
+
+  /* 小節選單卡片 */
+  .lessons {
+    display: flex; flex-direction: column;
+    gap: 1rem; width: 100%; max-width: 30rem;
+  }
+  .lesson-card {
+    display: flex; align-items: center; gap: 1.1rem;
+    background: linear-gradient(160deg, #ffffff, #f7faff);
+    border: 1px solid var(--line);
+    border-radius: 1.2rem;
+    padding: 1.1rem 1.3rem;
+    cursor: pointer; text-align: left;
+    box-shadow: 0 6px 16px rgba(70,107,138,0.10);
+    transition: border-color .15s, transform .08s, box-shadow .15s;
+  }
+  .lesson-card:hover { border-color: var(--accent); box-shadow: 0 10px 22px rgba(70,107,138,0.18); transform: translateY(-2px); }
+  .lesson-card:active { transform: translateY(0); }
+  .lesson-card.locked { opacity: 0.55; cursor: default; }
+  .lesson-card.locked:hover { border-color: var(--line); box-shadow: 0 6px 16px rgba(70,107,138,0.10); transform: none; }
+
+  .lesson-badge {
+    flex: 0 0 auto;
+    width: 3.6rem; height: 3.6rem; border-radius: 0.9rem;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem; font-weight: 800; letter-spacing: 0.02em;
+  }
+  .lesson-body { flex: 1 1 auto; min-width: 0; }
+  .lesson-title { display: block; font-size: 1.5rem; font-weight: 700; color: var(--ink); }
+  .lesson-desc  { display: block; font-size: 1.05rem; color: var(--muted); margin-top: 0.15rem; }
+  .lesson-go { flex: 0 0 auto; font-size: 1.6rem; color: var(--accent); }
+  .lesson-card.locked .lesson-go { color: var(--muted); }
+
+  /* ────────────────────────────────────────────
+     作答頁
+     ──────────────────────────────────────────── */
+  #game { height: 100%; display: none; flex-direction: column; }
+  #game.show { display: flex; }
+
+  .topbar {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.7rem 1rem; gap: 0.5rem;
+  }
+  .tool-btn {
+    height: 3rem; padding: 0 1.125rem;
+    border: 1px solid var(--line); background: var(--surface);
+    border-radius: 0.75rem; color: var(--ink);
+    font-size: 1.05rem; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: border-color .15s, color .15s, background .15s;
+  }
+  .tool-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tool-btn:active { transform: translateY(1px); }
+
+  .topbar .lesson-tag {
+    font-size: 1.15rem; font-weight: 700; color: var(--accent);
+  }
+  /* 進度點 */
+  .progress { display: flex; gap: 0.4rem; align-items: center; }
+  .progress .dot {
+    width: 0.7rem; height: 0.7rem; border-radius: 50%;
+    background: var(--line); transition: background .2s, transform .2s;
+  }
+  .progress .dot.done { background: var(--ok); }
+  .progress .dot.cur  { background: var(--accent); transform: scale(1.35); }
+
+  /* 題目卡 */
+  .stage {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: 0.5rem 1.25rem; gap: 0.9rem;
+    overflow: auto;
+  }
+
+  .qtype-tag {
+    align-self: center;
+    font-size: 1rem; color: var(--accent);
+    background: var(--accent-soft);
+    padding: 0.3rem 0.9rem; border-radius: 999px; font-weight: 600;
+  }
+  .question {
+    width: 100%; max-width: 30rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1.1rem;
+    padding: 1.4rem 1.3rem;
+    box-shadow: 0 4px 14px rgba(70,107,138,0.08);
+    text-align: center;
+  }
+  .q-prompt { font-size: 1.4rem; line-height: 1.6; color: var(--ink); }
+  .q-prompt .big {
+    display: block; margin: 0.6rem 0;
+    font-size: 2.5rem; font-weight: 800; letter-spacing: 0.02em; color: var(--accent);
+    word-break: break-all;
+  }
+  .q-prompt .kw { color: var(--grp-wan); font-weight: 800; }
+
+  /* 位值表（1-1 用：個級/萬級分色，可標出某位） */
+  .placetable { margin: 0.6rem auto 0; overflow-x: auto; }
+  .placetable table { border-collapse: collapse; margin: 0 auto; }
+  .placetable th, .placetable td {
+    border: 1px solid var(--line);
+    width: 2.5rem; height: 2.5rem; text-align: center;
+    font-size: 1.3rem; font-weight: 700;
+  }
+  .placetable th { font-size: 0.95rem; font-weight: 600; color: var(--muted); background: #fafbfc; }
+  .placetable .g-ind { background: var(--grp-ind-soft); color: var(--grp-ind); }
+  .placetable .g-wan { background: var(--grp-wan-soft); color: var(--grp-wan); }
+  .placetable td.mark { outline: 3px solid var(--accent); outline-offset: -3px; }
+  .placetable th.mark { color: var(--accent); }
+
+  /* 選擇題選項 */
+  .choices {
+    width: 100%; max-width: 30rem;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;
+  }
+  .choices.one-col { grid-template-columns: 1fr; }
+  .choice {
+    border: 2px solid var(--line); background: var(--surface);
+    border-radius: 0.9rem; padding: 1rem 0.75rem;
+    font-size: 1.5rem; font-weight: 600; color: var(--ink);
+    cursor: pointer;
+    transition: border-color .12s, background .12s, transform .05s;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    word-break: break-all; line-height: 1.4;
+  }
+  .choice:hover { border-color: var(--accent); }
+  .choice:active { transform: translateY(1px); }
+  .choice.ok  { border-color: var(--ok); background: #eaf6ef; color: var(--ok); }
+  .choice.no  { border-color: var(--no); background: #fbeceb; color: var(--no); }
+  .choice.disabled { pointer-events: none; opacity: 0.7; }
+
+  .feedback {
+    flex: 0 0 auto;
+    height: 1.7rem; text-align: center;
+    font-size: 1.2rem; color: var(--muted); font-weight: 600;
+  }
+  .feedback.ok { color: var(--ok); }
+  .feedback.no { color: var(--no); }
+
+  /* 數字鍵盤輸入區 */
+  .keypad-area {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0.7rem;
+    padding: 0 1rem calc(0.8rem + env(safe-area-inset-bottom));
+    width: 100%; max-width: 27rem; margin: 0 auto;
+  }
+  .answer-box {
+    display: flex; align-items: baseline; justify-content: center; gap: 0.5rem;
+  }
+  .answer-box .val {
+    min-width: 8rem; text-align: center;
+    font-size: 2.3rem; font-weight: 800;
+    border-bottom: 3px solid var(--line);
+    padding: 0 0.5rem 0.2rem;
+    transition: border-color .15s;
+    word-break: break-all;
+  }
+  .answer-box .val.empty { color: var(--muted); }
+  .answer-box .val.filled { border-color: var(--accent); color: var(--ink); }
+  .answer-box .unit { font-size: 1.2rem; color: var(--muted); }
+
+  .pad {
+    width: 100%;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0.55rem;
+  }
+  .pad button {
+    height: 3.7rem;
+    border: 1px solid var(--line); background: var(--surface);
+    border-radius: 0.8rem;
+    font-size: 1.7rem; font-weight: 500; color: var(--ink);
+    cursor: pointer;
+    transition: background .12s, border-color .12s, transform .04s;
+  }
+  .pad button:hover { border-color: var(--accent); }
+  .pad button:active { transform: translateY(1px); background: var(--accent-soft); }
+  .pad button:disabled { color: var(--muted); background: var(--bg); cursor: default; }
+  .pad .send { background: var(--accent); color: #fff; border-color: var(--accent); font-size: 1.3rem; }
+  .pad .send:hover { filter: brightness(1.05); }
+  .pad .del { color: var(--muted); font-size: 1.5rem; }
+
+  /* 比大小：固定三個按鈕（大於 / 等於 / 小於），中文在上、符號在下 */
+  .choices.cmp { grid-template-columns: repeat(3, 1fr); gap: 0.7rem; }
+  .choices.cmp .choice {
+    white-space: pre-line;              /* 尊重 label 裡的換行 */
+    font-size: 1.35rem; font-weight: 700;
+    line-height: 1.5; padding: 0.9rem 0.4rem;
+  }
+
+  /* 連連看：左右兩列，中間留大空隙讓使用者拖曳拉線連起來 */
+  .matchbox {
+    position: relative;                 /* 供 SVG 連線層絕對定位 */
+    width: 100%; max-width: 32rem;
+    display: grid; grid-template-columns: 1fr 1fr;
+    column-gap: 7rem;                   /* 左右列中間拉開，給連線空間 */
+    row-gap: 0.7rem;
+    align-items: stretch;
+    touch-action: none;                 /* 拖曳完全交給 pointer 事件 */
+  }
+  /* SVG 連線層：覆蓋整個 matchbox，不擋點擊（線本身不需互動） */
+  .match-lines {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 1;
+    overflow: visible;
+  }
+  .match-col { display: flex; flex-direction: column; gap: 0.7rem; position: relative; z-index: 2; }
+  .match-item {
+    position: relative;
+    border: 2px solid var(--line); background: var(--surface);
+    border-radius: 0.8rem; padding: 0.8rem 0.6rem;
+    font-size: 1.25rem; font-weight: 600; color: var(--ink);
+    cursor: grab; text-align: center; word-break: break-all; line-height: 1.35;
+    transition: border-color .12s, background .12s, transform .05s, box-shadow .15s;
+  }
+  .match-item:hover { border-color: var(--accent); }
+  .match-item.drag { cursor: grabbing; border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 4px 12px rgba(74,107,138,0.25); }
+  .match-item.target { border-color: var(--accent); background: var(--accent-soft); }  /* 拖到上方時 */
+  .match-item.done { border-color: var(--ok); background: #eaf6ef; color: var(--ok); cursor: default; }
+  .match-item.miss { border-color: var(--no); background: #fbeceb; }
+  /* 連接點小圓（朝向對側） */
+  .match-item .dot {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 0.7rem; height: 0.7rem; border-radius: 50%;
+    background: var(--line); transition: background .15s;
+  }
+  .match-item[data-side="L"] .dot { right: -0.35rem; }
+  .match-item[data-side="R"] .dot { left: -0.35rem; }
+  .match-item:hover .dot, .match-item.drag .dot, .match-item.target .dot { background: var(--accent); }
+  .match-item.done .dot { background: var(--ok); }
+  .match-hint { font-size: 1rem; color: var(--muted); text-align: center; margin-top: 0.5rem; }
+
+  .hidden { display: none !important; }
+
+  /* 慶祝動畫（仿 area） */
+  #celebrate {
+    position: fixed; inset: 0; z-index: 50;
+    display: none; align-items: center; justify-content: center;
+    background: transparent; overflow: hidden; pointer-events: none;
+  }
+  #celebrate.show { display: flex; }
+  #celebrate.fade { animation: cele-fade .5s ease-in forwards; }
+  @keyframes cele-fade { from { opacity: 1; } to { opacity: 0; } }
+  .cele-img {
+    width: 80%; max-width: 40rem; object-fit: contain;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,.12));
+    animation: cele-pop .5s cubic-bezier(0.34,1.56,0.64,1) both,
+               cele-bounce 1.2s ease-in-out 0.5s infinite;
+  }
+  @keyframes cele-pop {
+    0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+    60%  { transform: scale(1.15) rotate(6deg);  opacity: 1; }
+    100% { transform: scale(1)   rotate(0);      opacity: 1; }
+  }
+  @keyframes cele-bounce {
+    0%,100% { transform: scale(1)    rotate(0deg); }
+    25%     { transform: scale(1.08) rotate(-2.5deg); }
+    50%     { transform: scale(0.97) rotate(0deg); }
+    75%     { transform: scale(1.08) rotate(2.5deg); }
+  }
+  .cele-sparkles { position: absolute; inset: 0; pointer-events: none; }
+  .cele-sparkles span { position: absolute; font-size: 2.2rem; animation: cele-sparkle 2.2s ease-out infinite; }
+  @keyframes cele-sparkle {
+    0%   { transform: scale(0.4) translateY(15px); opacity: 0; }
+    25%  { transform: scale(1.2) translateY(0);    opacity: 1; }
+    80%  { transform: scale(1)   translateY(-18px); opacity: 1; }
+    100% { transform: scale(0.6) translateY(-36px); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="frame">
+
+  <!-- ───────────── 首頁 ───────────── -->
+  <main id="home">
+    <div class="kicker">四年級上學期 · 第一單元</div>
+    <h1>一億以內的數</h1>
+    <p class="sub">點下面的位名，看看它在哪一位</p>
+    <div class="placedemo">
+      <div class="placedemo-grid" id="placedemoGrid"></div>
+      <div class="placedemo-caption" id="placedemoCaption"></div>
+      <button class="placedemo-reroll" id="placedemoReroll">換一個數字 ↻</button>
+    </div>
+    <div class="lessons" id="lessons"></div>
+  </main>
+
+  <!-- ───────────── 作答頁 ───────────── -->
+  <main id="game">
+    <div class="topbar">
+      <button class="tool-btn" id="homeBtn">‹ 回選單</button>
+      <span class="lesson-tag" id="lessonTag">1-1</span>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <div class="stage">
+      <div class="qtype-tag" id="qtypeTag"></div>
+      <div class="question" id="question"></div>
+      <div class="choices hidden" id="choices"></div>
+      <div class="matchbox hidden" id="matchbox"></div>
+      <div class="match-hint hidden" id="matchHint">從一邊拉一條線連到相同的數字</div>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <!-- 數字鍵盤（僅輸入題顯示） -->
+    <div class="keypad-area" id="keypadArea">
+      <div class="answer-box">
+        <span class="val empty" id="answerVal">?</span>
+        <span class="unit" id="answerUnit"></span>
+      </div>
+      <div class="pad" id="pad">
+        <button data-d="1">1</button>
+        <button data-d="2">2</button>
+        <button data-d="3">3</button>
+        <button data-d="4">4</button>
+        <button data-d="5">5</button>
+        <button data-d="6">6</button>
+        <button data-d="7">7</button>
+        <button data-d="8">8</button>
+        <button data-d="9">9</button>
+        <button class="del" id="delBtn">⌫</button>
+        <button data-d="0">0</button>
+        <button class="send" id="sendBtn">送出</button>
+      </div>
+    </div>
+  </main>
+
+</div><!-- /#frame -->
+
+<!-- 慶祝 -->
+<div id="celebrate">
+  <div class="cele-sparkles" id="celeSparkles"></div>
+  <img class="cele-img" src="assets/images/celebration.png" alt="慶祝" draggable="false" />
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   音效：預熱池 + iOS 解鎖（沿用 area / arithmetic 的機制）
+   資源用相對路徑指向姊妹專案 area 的 assets。
+   ============================================================ */
+const SOUND_FILES = { ding: 'ding.mp3', eoh: 'eoh.mp3', cheer: 'cheer.mp3' };
+const SOUND_BASE = 'assets/sounds/';
+const POOL_SIZE = 3;
+const pools = { ding: [], eoh: [], cheer: [] };
+function makeElement(name) {
+  const el = new Audio(SOUND_BASE + SOUND_FILES[name]);
+  el.preload = 'auto'; el.load();
+  return el;
+}
+for (const name of Object.keys(SOUND_FILES))
+  for (let i = 0; i < POOL_SIZE; i++) pools[name].push(makeElement(name));
+
+let audioUnlocked = false, unlockInFlight = false;
+function unlockSounds() {
+  if (audioUnlocked || unlockInFlight) return;
+  unlockInFlight = true;
+  const dummy = new Audio(SOUND_BASE + SOUND_FILES.ding);
+  dummy.muted = true;
+  dummy.play().then(() => { audioUnlocked = true; unlockInFlight = false; })
+              .catch(() => { unlockInFlight = false; });
+}
+const uh = () => unlockSounds();
+document.addEventListener('touchstart', uh, { capture: true, passive: true });
+document.addEventListener('touchend', uh, { capture: true, passive: true });
+document.addEventListener('mousedown', uh, { capture: true });
+document.addEventListener('click', uh, { capture: true });
+function playSound(name) {
+  const pool = pools[name];
+  let el = pool.find((e) => e.paused || e.ended);
+  if (!el) el = makeElement(name);
+  else if (el.currentTime !== 0) el.currentTime = 0;
+  el.play().catch(() => {});
+}
+
+/* ============================================================
+   工具函式
+   ============================================================ */
+function rint(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ── 大數 → 繁體中文國字讀法 ──
+   支援 0 ~ 一億以內。正確處理「零」的插入與省略、以及「一十→十」。 */
+const CN_DIGIT = ['零','一','二','三','四','五','六','七','八','九'];
+const CN_SMALL_UNIT = ['', '十', '百', '千'];   // 個位段內的位
+
+// 把 0~9999 的一段轉成國字（不含段單位）。
+//   isHighest：這段是不是整個數的「最高段」。若是，且結果以「一十」開頭，
+//   依中文習慣省略成「十」（如 15→十五、12萬→十二萬）；非最高段不省（如 3015→三千零一十五）。
+function fourDigitsToCn(n, isHighest) {
+  // n: 0..9999，回傳如「六千二百五十」「三百零五」「五」等；n=0 回空字串
+  if (n === 0) return '';
+  let s = '';
+  let zeroPending = false;
+  const digits = [Math.floor(n/1000)%10, Math.floor(n/100)%10, Math.floor(n/10)%10, n%10];
+  for (let i = 0; i < 4; i++) {
+    const d = digits[i];
+    const unit = CN_SMALL_UNIT[3 - i];
+    if (d === 0) {
+      zeroPending = s.length > 0;   // 已有較高位才可能需要補零
+    } else {
+      if (zeroPending) { s += '零'; zeroPending = false; }
+      s += CN_DIGIT[d] + unit;
+    }
+  }
+  // 最高段開頭的「一十」省成「十」
+  if (isHighest && s.indexOf('一十') === 0) s = s.slice(1);
+  return s;
+}
+// 萬以內（0 ~ 99999999）：萬級 + 個級
+function wanToCn(n) {
+  if (n === 0) return '零';
+  const wan = Math.floor(n / 10000);   // 萬級 0..9999
+  const ind = n % 10000;               // 個級 0..9999
+  if (wan === 0) return fourDigitsToCn(ind, true);
+  let s = fourDigitsToCn(wan, true) + '萬';   // 萬級是最高段
+  if (ind === 0) return s;
+  // 個級不足四位（最高位為 0）→ 中間補「零」，如 30050000 = 三千零五萬…
+  if (ind < 1000) s += '零';
+  s += fourDigitsToCn(ind, false);            // 個級非最高段，不省「一十」
+  return s;
+}
+// 完整：0 ~ 999999999（支援「億」級，供首頁九位數示範用）
+function numberToCn(n) {
+  if (n === 0) return '零';
+  const yi = Math.floor(n / 100000000);   // 億級（此範圍內 0..9）
+  const rest = n % 100000000;             // 億以下 0..99999999
+  if (yi === 0) return wanToCn(rest);
+  let s = fourDigitsToCn(yi, true) + '億';  // 億級是最高段
+  if (rest === 0) return s;
+  // 億與其後之間補零：若「千萬位」為 0（rest < 千萬 = 10000000），中間要念「零」
+  //   如 900500000 = 九億零五十萬、300000005 = 三億零五
+  if (rest < 10000000) s += '零';
+  s += wanToCn(rest);
+  return s;
+}
+
+// 阿拉伯數字加分節逗號（每三位）——用於顯示比較
+function withCommas(n) { return n.toLocaleString('en-US'); }
+
+/* ============================================================
+   小節資料
+   ============================================================ */
+const LESSONS = [
+  { id: '1-1', title: '十萬以內的數', desc: '認識十萬、位值、幾個萬', locked: false },
+  { id: '1-2', title: '一億以內的數', desc: '百萬・千萬・億、分節讀法', locked: false },
+  { id: '1-3', title: '比較與加減',   desc: '比大小、整萬整億加減',   locked: false },
+];
+
+const SET_SIZE = 8;   // 每組題數
+
+/* ============================================================
+   1-1 出題引擎（十萬以內：1 ~ 999999）
+   題型：
+     a) cn2num  國字 → 數字（鍵盤輸入）
+     b) num2cn  數字 → 國字（選擇題）
+     c) place   位值：某位數字代表多少 / 某數字在哪一位（選擇題）
+     d) countwan「幾個萬」（鍵盤輸入）
+   ============================================================ */
+const PLACE_NAMES = ['個','十','百','千','萬','十萬','百萬','千萬','億'];   // index 0..8
+
+// 產生一個「好念」的十萬以內數：位數 minDigits~6，末幾位常帶 0（貼近課本題型）。
+// 「大數」單元重點在萬級，故預設至少 4 位，避免出現過於簡單的兩三位數。
+function genNumber(minDigits) {
+  const lo = minDigits || 4;
+  const digits = rint(lo, 6);                 // lo~6 位
+  const trailingZeros = rint(0, Math.min(digits - 1, 4)); // 末端 0 的個數
+  const significant = digits - trailingZeros;
+  let head = rint(1, 9);                      // 最高位不為 0
+  let s = String(head);
+  for (let i = 1; i < significant; i++) s += String(rint(0, 9));
+  for (let i = 0; i < trailingZeros; i++) s += '0';
+  return parseInt(s, 10);
+}
+
+// 「看國字寫數字」專用：5~6 位（保證進萬級），且在「中間」刻意挖 1~2 個 0，
+// 產生像 250046、300500、680070 這種中間有洞的數，逼孩子注意位值、不能照順序填。
+//   規則：最高位必為非 0；為了「中間」有洞，至少保留一個較低位也非 0（不是整萬數）；
+//         其餘中間位隨機挑 1~2 個設為 0。
+function genNumberWithHoles() {
+  for (let t = 0; t < 80; t++) {
+    const len = rint(5, 6);                        // 5 或 6 位
+    const d = new Array(len);
+    d[0] = rint(1, 9);                             // 最高位非 0
+    for (let i = 1; i < len; i++) d[i] = rint(0, 9);
+    // 中間可挖 0 的位置：index 1 .. len-1（含個位，讓「零結尾」也可能，但主要挖中間）
+    // 先確保「不是整萬數」＝個級（後四位）至少有一個非 0，避免變成 250000 這種
+    // 決定要挖幾個洞
+    const holes = rint(1, 2);
+    const innerIdx = [];
+    for (let i = 1; i < len; i++) innerIdx.push(i);
+    const pick = shuffle(innerIdx).slice(0, holes);
+    for (const i of pick) d[i] = 0;
+    const val = parseInt(d.join(''), 10);
+    // 驗收：真的有「中間洞」＝存在某個 0，其左右都還有非 0 數字
+    let hasInnerZero = false;
+    for (let i = 1; i < len - 1; i++) {
+      if (d[i] === 0) {
+        const leftNZ = d.slice(0, i).some(x => x !== 0);
+        const rightNZ = d.slice(i + 1).some(x => x !== 0);
+        if (leftNZ && rightNZ) { hasInnerZero = true; break; }
+      }
+    }
+    // 不要每位都填滿（至少一個 0）、要有中間洞、不是整萬數（後四位不全 0）
+    const notRoundWan = (val % 10000) !== 0;
+    if (hasInnerZero && notRoundWan && val >= 10000) return val;
+  }
+  return 250046;   // 極少數湊不到時的安全預設（示範中間有洞）
+}
+
+// 干擾選項：只用「題目裡出現過的非零數字」重新排位置，組出念法不同的錯誤數。
+//   例如 609000（非零數字 6、9）→ 干擾如 690000、960000、6090000…
+//   都只用得到 6、9、0，小孩無法靠「有沒有出現過的數字」刪答，只能靠位值判斷。
+function digitFingerprint(n) {              // 非零數字的多重集合指紋（順序無關）
+  return String(n).split('').filter(c => c !== '0').sort().join('');
+}
+function makeCnChoices(correctNum) {
+  const target = digitFingerprint(correctNum);      // 正解的非零數字集合
+  const nzDigits = String(correctNum).split('').filter(c => c !== '0');
+  const totalLen = String(correctNum).length;
+  const distractors = new Set();
+  const usedCn = new Set([numberToCn(correctNum)]);  // 念法去重，避免不同數字念出相同國字
+
+  // 嘗試多次：隨機決定總位數與零的分布，把非零數字散進去，組成新數
+  for (let t = 0; t < 400 && distractors.size < 3; t++) {
+    // 干擾的總位數：在正解位數上下浮動 ±2（維持一億以內、至少和非零數字一樣長）
+    const len = Math.max(nzDigits.length, Math.min(8, totalLen + rint(-2, 2)));
+    // 隨機挑 len 個位置，其中 nzDigits.length 個放非零數字（首位不為 0），其餘放 0
+    const slots = new Array(len).fill('0');
+    const idxs = shuffle([...Array(len).keys()]);
+    const shuffledNz = shuffle(nzDigits);
+    for (let i = 0; i < shuffledNz.length; i++) slots[idxs[i]] = shuffledNz[i];
+    if (slots[0] === '0') continue;                  // 最高位不可為 0
+    const val = parseInt(slots.join(''), 10);
+    if (val === correctNum) continue;                // 不能等於正解
+    if (val <= 0 || val >= 100000000) continue;      // 一億以內
+    // 只接受「非零數字集合和正解完全相同」的（理論上必然，保險起見再驗一次）
+    if (digitFingerprint(val) !== target) continue;
+    const cn = numberToCn(val);
+    if (usedCn.has(cn)) continue;                    // 念法不可重複
+    usedCn.add(cn);
+    distractors.add(val);
+  }
+
+  // 保險：若湊不滿 3 個（極少數如正解只有 1 個非零數字時），用「加一位 0」補
+  let pad = correctNum;
+  while (distractors.size < 3) {
+    pad = pad * 10;
+    if (pad < 100000000 && pad !== correctNum && !usedCn.has(numberToCn(pad))) {
+      usedCn.add(numberToCn(pad));
+      distractors.add(pad);
+    } else break;
+  }
+
+  const all = shuffle([correctNum, ...distractors]);
+  return all.map(n => ({ label: numberToCn(n), correct: n === correctNum }));
+}
+
+function build_cn2num() {
+  const n = genNumberWithHoles();     // 中間刻意有 0，逼孩子注意位值、補零
+  return {
+    type: 'input',
+    tag: '看國字，寫數字',
+    promptHtml: `把下面的國字寫成數字：<span class="big">${numberToCn(n)}</span>`,
+    unit: '',
+    answer: String(n),
+  };
+}
+function build_num2cn() {
+  const n = genNumber();
+  const opts = makeCnChoices(n);
+  return {
+    type: 'choice',
+    tag: '這個數怎麼念？',
+    promptHtml: `<span class="big">${withCommas(n)}</span>要念成……`,
+    choices: opts.map(o => ({ label: o.label, correct: o.correct })),
+    cols: 1,
+  };
+}
+function build_place() {
+  // 取一個至少 4 位、且該位不為 0 的數，問「某位的數字代表多少」
+  let n, idx, dig;
+  for (let t = 0; t < 60; t++) {
+    n = genNumber();
+    const len = String(n).length;
+    if (len < 3) continue;
+    idx = rint(1, len - 1);                 // 位置 index（0=個位）
+    dig = Math.floor(n / Math.pow(10, idx)) % 10;
+    if (dig !== 0) break;
+  }
+  const placeVal = dig * Math.pow(10, idx);
+  const wrong = new Set([placeVal]);
+  const cand = [dig, placeVal * 10, placeVal / 10, dig * Math.pow(10, Math.max(0, idx-1))];
+  for (const c of cand) if (c >= 1 && !wrong.has(c)) wrong.add(c);
+  while (wrong.size < 4) { const c = rint(1,9) * Math.pow(10, rint(0, idx+1)); wrong.add(c); }
+  const opts = shuffle([...wrong].slice(0, 4)).map(v => ({ label: withCommas(v), correct: v === placeVal }));
+  return {
+    type: 'choice',
+    tag: '位值：這個數字代表多少',
+    promptHtml: `<span class="big">${withCommas(n)}</span>裡面，<span class="kw">${dig}</span> 在「${PLACE_NAMES[idx]}」位，它代表多少？`,
+    choices: opts,
+    cols: 2,
+  };
+}
+function build_countwan() {
+  // 產生整萬數，問「是幾個萬」
+  const wanCount = rint(2, 99);          // 2~99 個萬
+  const n = wanCount * 10000;
+  return {
+    type: 'input',
+    tag: '幾個萬？',
+    promptHtml: `<span class="big">${withCommas(n)}</span>是幾個萬？`,
+    unit: '個萬',
+    answer: String(wanCount),
+  };
+}
+
+const BUILDERS_1_1 = [build_cn2num, build_num2cn, build_place, build_countwan];
+
+// 組出一整組題（盡量各題型輪流、不連續重複同一數）
+function buildSet_1_1() {
+  const set = [];
+  const order = [];
+  // 讓四種題型平均分布
+  while (order.length < SET_SIZE) {
+    for (const b of shuffle(BUILDERS_1_1)) { order.push(b); if (order.length >= SET_SIZE) break; }
+  }
+  for (const b of order) set.push(b());
+  return set;
+}
+
+/* ============================================================
+   1-2 出題引擎（一億以內：主要在萬級以上，10000 ~ 99999999）
+   重點：分節讀法、百萬/千萬的位值、中間有 0 的補零、億的組成。
+   題型：
+     a) cn2num2   看國字寫數字（千萬級 + 中間挖 0）
+     b) num2cn2   這個數怎麼念（選擇題，干擾用同組數字重排）
+     c) place2    位值：百萬/千萬位代表多少（選擇題）
+     d) compose   億／千萬的組成：「◯ 是幾個△」（鍵盤輸入）
+   ============================================================ */
+
+// 千萬級（7~8 位）且中間刻意挖 0 的數：像 30050000、10800000、62003000。
+// 逼孩子處理「萬」級與個級之間、以及段內的補零。
+function genBigWithHoles() {
+  for (let t = 0; t < 100; t++) {
+    const len = rint(7, 8);                       // 7 或 8 位（千萬級）
+    const d = new Array(len);
+    d[0] = rint(1, 9);                            // 最高位非 0
+    for (let i = 1; i < len; i++) d[i] = rint(0, 9);
+    // 挖 2~3 個中間 0，讓補零更有挑戰
+    const holes = rint(2, 3);
+    const innerIdx = [];
+    for (let i = 1; i < len; i++) innerIdx.push(i);
+    const pick = shuffle(innerIdx).slice(0, holes);
+    for (const i of pick) d[i] = 0;
+    const val = parseInt(d.join(''), 10);
+    // 至少一個「中間洞」：某個 0 左右都有非 0
+    let hasInnerZero = false;
+    for (let i = 1; i < len - 1; i++) {
+      if (d[i] === 0 && d.slice(0, i).some(x => x !== 0) && d.slice(i + 1).some(x => x !== 0)) { hasInnerZero = true; break; }
+    }
+    if (hasInnerZero && val >= 1000000) return val;
+  }
+  return 30050000;   // 安全預設（三千零五萬）
+}
+
+function build_cn2num2() {
+  const n = genBigWithHoles();
+  return {
+    type: 'input',
+    tag: '看國字，寫數字',
+    promptHtml: `把下面的國字寫成數字：<span class="big">${numberToCn(n)}</span>`,
+    unit: '',
+    answer: String(n),
+  };
+}
+function build_num2cn2() {
+  // 用千萬級的數（可含中間 0，貼近分節重點）
+  const n = choice([genBigWithHoles, () => genNumber(6)])();
+  const opts = makeCnChoices(n);
+  return {
+    type: 'choice',
+    tag: '這個數怎麼念？',
+    promptHtml: `<span class="big">${withCommas(n)}</span>要念成……`,
+    choices: opts.map(o => ({ label: o.label, correct: o.correct })),
+    cols: 1,
+  };
+}
+function build_place2() {
+  // 針對百萬(6)、千萬(7)位問位值：取一個 7~8 位、該位不為 0 的數
+  let n, idx, dig;
+  for (let t = 0; t < 80; t++) {
+    n = genNumber(rint(7, 8));
+    idx = choice([4, 5, 6, 7]);                   // 萬、十萬、百萬、千萬位
+    if (idx > String(n).length - 1) continue;
+    dig = Math.floor(n / Math.pow(10, idx)) % 10;
+    if (dig !== 0) break;
+  }
+  const placeVal = dig * Math.pow(10, idx);
+  const wrong = new Set([placeVal]);
+  const cand = [dig, placeVal * 10, placeVal / 10, dig * Math.pow(10, Math.max(0, idx - 1))];
+  for (const c of cand) if (c >= 1 && c < 100000000 && !wrong.has(c)) wrong.add(c);
+  while (wrong.size < 4) { const c = rint(1, 9) * Math.pow(10, rint(3, 7)); if (c < 100000000) wrong.add(c); }
+  const opts = shuffle([...wrong].slice(0, 4)).map(v => ({ label: withCommas(v), correct: v === placeVal }));
+  return {
+    type: 'choice',
+    tag: '位值：這個數字代表多少',
+    promptHtml: `<span class="big">${withCommas(n)}</span>裡面，<span class="kw">${dig}</span> 在「${PLACE_NAMES[idx]}」位，它代表多少？`,
+    choices: opts,
+    cols: 2,
+  };
+}
+function build_compose() {
+  // 「億／千萬／百萬 的組成」：問某整數是幾個某單位。答案為整數。
+  const kinds = [
+    // [被問的數, 單位名, 單位值]
+    () => { const k = rint(2, 9);  return { n: k * 10000000, unit: '個千萬', per: 10000000 }; },  // 幾個千萬
+    () => { const k = rint(2, 9);  return { n: k * 1000000,  unit: '個百萬', per: 1000000 }; },   // 幾個百萬
+    () => { return { n: 100000000, unit: '個千萬', per: 10000000 }; },                            // 一億是幾個千萬(=10)
+    () => { const k = rint(11, 99); return { n: k * 10000, unit: '個萬', per: 10000 }; },          // 幾個萬（進到十萬～百萬）
+  ];
+  const c = choice(kinds)();
+  const count = c.n / c.per;
+  return {
+    type: 'input',
+    tag: '數的組成',
+    promptHtml: `<span class="big">${c.n === 100000000 ? '一億' : withCommas(c.n)}</span>是幾個${c.unit.slice(1)}？`,
+    unit: c.unit,
+    answer: String(count),
+  };
+}
+
+/* ── 共用題型：比大小、連連看（1-2 與 1-3 共用）── */
+
+// 把數字顯示成「◯萬◯」格式（貼近課本，如 284520 → 28萬4520）。
+// 個級不足四位時補零，如 30020 → 3萬0020；整萬數 → ◯萬。
+function withWan(n) {
+  const wan = Math.floor(n / 10000);
+  const ind = n % 10000;
+  if (wan === 0) return String(ind);
+  if (ind === 0) return wan + '萬';
+  return wan + '萬' + String(ind).padStart(4, '0');
+}
+
+// 比大小：填 >、=、<。三種對照——純數字、國字vs數字混合、位數相同只差一位。
+function build_compare(maxDigits) {
+  const md = maxDigits || 8;
+  const genOne = () => genNumber(rint(5, md));
+  let a = genOne(), b;
+  const mode = choice(['diff', 'close', 'equal', 'mixed']);
+  if (mode === 'equal') {
+    b = a;                                   // 相等（考 = ）
+  } else if (mode === 'close') {
+    // 位數相同、只差一點：把 a 的某一位 ±1~3
+    const s = String(a).split('');
+    const i = rint(0, s.length - 1);
+    let nd = parseInt(s[i], 10) + choice([-2, -1, 1, 2]);
+    nd = Math.max(0, Math.min(9, nd));
+    if (i === 0 && nd === 0) nd = 1;
+    s[i] = String(nd);
+    b = parseInt(s.join(''), 10);
+    if (b === a) b = a + choice([-10, 10, -100, 100]);
+  } else {
+    b = genOne();                            // 一般（多半位數就不同，好比）
+  }
+  if (b <= 0) b = a + 1;
+  // 呈現方式：mixed 模式左邊用國字、右邊用阿拉伯數字（真實考卷的混合比）
+  const useCn = (mode === 'mixed');
+  const showA = useCn ? numberToCn(a) : withCommas(a);
+  const showB = withCommas(b);
+  const answer = a > b ? '>' : (a < b ? '<' : '=');
+  // 固定三個按鈕：大於 / 等於 / 小於（順序固定，不洗牌），按鈕顯示中文字，判分用符號。
+  const opts = [
+    { label: '大於\n>', correct: answer === '>' },
+    { label: '等於\n=', correct: answer === '=' },
+    { label: '小於\n<', correct: answer === '<' },
+  ];
+  return {
+    type: 'choice',
+    tag: useCn ? '比大小（國字和數字）' : '比大小',
+    promptHtml: `左邊的數比右邊……？<br><span class="big" style="font-size:1.9rem">${showA} &nbsp;▢&nbsp; ${showB}</span>`,
+    choices: opts,
+    cols: 3,
+    cmp: true,
+  };
+}
+
+// 連連看：4 組「數字 ↔ 國字」配對。用相近的數字（易混淆）增加鑑別度。
+function build_match() {
+  const nums = new Set();
+  // 挑一個基底，再做幾個「數字相近但念法不同」的變化，逼孩子讀清楚
+  const base = genNumberWithHoles();
+  nums.add(base);
+  let guard = 0;
+  while (nums.size < 4 && guard < 200) {
+    guard++;
+    const v = choice([genNumberWithHoles, () => genNumber(rint(5, 6))])();
+    // 避免念法重複
+    if (![...nums].some(x => numberToCn(x) === numberToCn(v))) nums.add(v);
+  }
+  const list = [...nums];
+  const left = list.map(n => ({ key: String(n), label: withCommas(n) }));      // 阿拉伯數字
+  const right = list.map(n => ({ key: String(n), label: numberToCn(n) }));     // 國字
+  return {
+    type: 'match',
+    tag: '連連看：數字配國字',
+    promptHtml: '把相同的數字連起來',
+    left: shuffle(left),
+    right: shuffle(right),
+  };
+}
+
+const BUILDERS_1_2 = [build_cn2num2, build_num2cn2, build_place2, build_compose, build_compare, build_match];
+function buildSet_1_2() {
+  const set = [];
+  const order = [];
+  while (order.length < SET_SIZE) {
+    for (const b of shuffle(BUILDERS_1_2)) { order.push(b); if (order.length >= SET_SIZE) break; }
+  }
+  for (const b of order) set.push(b());
+  return set;
+}
+
+/* ============================================================
+   1-3 出題引擎（比較與加減）
+   重點：大小比較（含國字vs數字混合比、排序）、以「萬」為單位的大數加減。
+   題型：
+     a) compare   比大小（>、=、<）—— 共用 build_compare
+     b) match     連連看 —— 共用 build_match（讀法↔數字，也在鞏固比較前的辨識）
+     c) addsub    大數加減（直式概念，鍵盤輸入完整數字）
+     d) ordering  三個數排大小（選「最大的」或「最小的」，選擇題）
+   ============================================================ */
+
+// 大數加減：以萬為單位呈現（像 28萬4520 + 1萬5500），答案填完整阿拉伯數字。
+// 依此單元重點，數字控制在「幾十萬級」：兩數皆為 幾萬~幾十萬，結果不超過百萬。
+function build_addsub() {
+  const isAdd = choice([true, true, false]);   // 加法多一點
+  let a, b, result;
+  if (isAdd) {
+    // 兩數都在 1萬~49萬 之間（含個級零頭），相加最多約 98萬，不超過百萬
+    a = rint(1, 49) * 10000 + rint(0, 9999);
+    b = rint(1, 49) * 10000 + rint(0, 9999);
+    result = a + b;
+  } else {
+    // 減法：a 大 b 小、結果為正。a 到幾十萬，b 較小
+    a = rint(10, 80) * 10000 + rint(0, 9999);
+    b = rint(1, 9) * 10000 + rint(0, 9999);
+    if (b >= a) b = rint(1, 9) * 10000;         // 保險：確保 b < a
+    result = a - b;
+  }
+  const op = isAdd ? '＋' : '－';
+  return {
+    type: 'input',
+    tag: isAdd ? '大數加法' : '大數減法',
+    promptHtml: `算算看：<br><span class="big" style="font-size:1.9rem">${withWan(a)} ${op} ${withWan(b)}</span><br>` +
+                `<span style="font-size:1.05rem;color:var(--muted)">把答案的數字寫出來</span>`,
+    unit: '',
+    answer: String(result),
+  };
+}
+
+// 三個數比大小：選出最大（或最小）的那個。混用國字與數字增加辨識難度。
+function build_ordering() {
+  const pickMax = choice([true, false]);
+  const nums = new Set();
+  let guard = 0;
+  while (nums.size < 3 && guard < 200) { guard++; nums.add(genNumber(rint(5, 8))); }
+  const list = [...nums];
+  const target = pickMax ? Math.max(...list) : Math.min(...list);
+  // 隨機讓其中一個以國字呈現（考換算後比較）
+  const cnIdx = rint(0, list.length - 1);
+  const opts = shuffle(list).map((n, i) => ({
+    label: (n === list[cnIdx] && Math.random() < 0.5) ? numberToCn(n) : withCommas(n),
+    correct: n === target,
+    val: n,
+  }));
+  // 確保恰一正解（若有重複值極少見，genNumber 幾乎不撞）
+  return {
+    type: 'choice',
+    tag: pickMax ? '哪個最大？' : '哪個最小？',
+    promptHtml: `下面哪一個數<span class="kw">${pickMax ? '最大' : '最小'}</span>？`,
+    choices: opts,
+    cols: 1,
+  };
+}
+
+const BUILDERS_1_3 = [build_compare, build_addsub, build_ordering, build_match];
+function buildSet_1_3() {
+  const set = [];
+  const order = [];
+  while (order.length < SET_SIZE) {
+    for (const b of shuffle(BUILDERS_1_3)) { order.push(b); if (order.length >= SET_SIZE) break; }
+  }
+  for (const b of order) set.push(b());
+  return set;
+}
+
+const LESSON_BUILDERS = { '1-1': buildSet_1_1, '1-2': buildSet_1_2, '1-3': buildSet_1_3 };
+
+/* ============================================================
+   DOM
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+const homeEl = $('home'), gameEl = $('game');
+const lessonsEl = $('lessons'), progressEl = $('progress');
+const lessonTag = $('lessonTag');
+const qtypeTag = $('qtypeTag'), questionEl = $('question'), choicesEl = $('choices');
+const matchboxEl = $('matchbox'), matchHintEl = $('matchHint');
+const feedbackEl = $('feedback');
+const keypadArea = $('keypadArea'), answerVal = $('answerVal'), answerUnit = $('answerUnit');
+const padEl = $('pad'), celebrate = $('celebrate');
+
+/* ============================================================
+   狀態
+   ============================================================ */
+const state = {
+  lessonId: null,
+  questions: [],
+  qNum: 0,
+  q: null,
+  input: '',
+  solved: false,
+  locking: false,
+};
+
+/* ============================================================
+   首頁
+   ============================================================ */
+function renderHome() {
+  lessonsEl.innerHTML = '';
+  LESSONS.forEach(L => {
+    const card = document.createElement('button');
+    card.className = 'lesson-card' + (L.locked ? ' locked' : '');
+    card.innerHTML =
+      `<span class="lesson-badge">${L.id}</span>` +
+      `<span class="lesson-body">` +
+        `<span class="lesson-title">${L.title}</span>` +
+        `<span class="lesson-desc">${L.locked ? '準備中…' : L.desc}</span>` +
+      `</span>` +
+      `<span class="lesson-go">${L.locked ? '🔒' : '›'}</span>`;
+    if (!L.locked) tap(card, () => startLesson(L.id));
+    lessonsEl.appendChild(card);
+  });
+}
+
+/* ============================================================
+   首頁位值示範：九位數對齊「個十百千萬…億」，點位名高亮並說明
+   ============================================================ */
+// 由高位到低位的位名（index 0 = 億，index 8 = 個）
+const DEMO_PLACE_NAMES = ['億','千萬','百萬','十萬','萬','千','百','十','個'];
+// 分節（個級/萬級/億）與各位的「位值」（10 的次方）
+const DEMO_GROUP = ['g-yi','g-wan','g-wan','g-wan','g-wan','g-ind','g-ind','g-ind','g-ind'];
+const DEMO_POW   = [1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 1e2, 1e1, 1];
+const placedemoGrid = $('placedemoGrid'), placedemoCaption = $('placedemoCaption');
+
+let demoDigits = [];   // 目前示範數的九位數字（高位到低位）
+
+function rollDemoNumber() {
+  demoDigits = [rint(1, 9)];                       // 最高位（億位）非 0
+  for (let i = 1; i < 9; i++) demoDigits.push(rint(0, 9));
+  renderPlaceDemo();
+}
+function renderPlaceDemo() {
+  placedemoGrid.innerHTML = '';
+  demoDigits.forEach((d, i) => {
+    const cell = document.createElement('button');
+    cell.className = 'pd-cell ' + DEMO_GROUP[i];
+    // 萬位、億位左邊加分節虛線（即 index 0 的億、index 4 的萬 左緣）
+    if (i === 1 || i === 5) cell.classList.add('sep');   // 千萬左(億|千萬間)、千左(萬|千間)
+    cell.innerHTML = `<span class="pd-digit">${d}</span><span class="pd-name">${DEMO_PLACE_NAMES[i]}</span>`;
+    tap(cell, () => highlightPlace(i, cell));
+    placedemoGrid.appendChild(cell);
+  });
+  const full = demoDigits.join('');
+  placedemoCaption.innerHTML = `這個數是 <b>${withCommas(parseInt(full, 10))}</b><br>念作「${numberToCn(parseInt(full, 10))}」`;
+}
+function highlightPlace(i, cell) {
+  unlockSounds();
+  placedemoGrid.querySelectorAll('.pd-cell').forEach(c => c.classList.remove('on'));
+  cell.classList.add('on');
+  const d = demoDigits[i];
+  const placeVal = d * DEMO_POW[i];
+  if (d === 0) {
+    placedemoCaption.innerHTML = `<b>${DEMO_PLACE_NAMES[i]}</b>位是 <b>0</b>，這一位是空的`;
+  } else {
+    placedemoCaption.innerHTML = `<b>${DEMO_PLACE_NAMES[i]}</b>位的 <b>${d}</b>，代表 <b>${withCommas(placeVal)}</b>`;
+  }
+}
+tap($('placedemoReroll'), rollDemoNumber);
+
+function startLesson(id) {
+  unlockSounds();
+  state.lessonId = id;
+  state.questions = LESSON_BUILDERS[id]();
+  state.qNum = 0;
+  lessonTag.textContent = id;
+  homeEl.style.display = 'none';
+  gameEl.classList.add('show');
+  renderProgress();
+  showQuestion();
+}
+function goHome() {
+  gameEl.classList.remove('show');
+  homeEl.style.display = 'flex';
+}
+
+/* ============================================================
+   進度點
+   ============================================================ */
+function renderProgress() {
+  progressEl.innerHTML = '';
+  for (let i = 0; i < SET_SIZE; i++) {
+    const d = document.createElement('span');
+    d.className = 'dot' + (i < state.qNum ? ' done' : (i === state.qNum ? ' cur' : ''));
+    progressEl.appendChild(d);
+  }
+}
+
+/* ============================================================
+   顯示題目
+   ============================================================ */
+function showQuestion() {
+  state.q = state.questions[state.qNum];
+  state.input = '';
+  state.solved = false;
+  state.locking = false;
+  setFeedback('', '');
+  qtypeTag.textContent = state.q.tag || '';
+  questionEl.innerHTML = `<div class="q-prompt">${state.q.promptHtml}</div>`;
+  renderProgress();
+
+  // 先全部收起，再依題型顯示對應區塊
+  choicesEl.classList.add('hidden');
+  matchboxEl.classList.add('hidden');
+  matchHintEl.classList.add('hidden');
+  keypadArea.classList.add('hidden');
+
+  if (state.q.type === 'input') {
+    keypadArea.classList.remove('hidden');
+    answerUnit.textContent = state.q.unit || '';
+    setPadEnabled(true);
+    updateAnswer();
+  } else if (state.q.type === 'match') {
+    renderMatch();
+  } else {
+    renderChoices();
+  }
+}
+
+function renderChoices() {
+  choicesEl.classList.remove('hidden');
+  choicesEl.classList.toggle('one-col', state.q.cols === 1);
+  choicesEl.classList.toggle('cmp', !!state.q.cmp);
+  choicesEl.innerHTML = '';
+  state.q.choices.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.textContent = c.label;
+    tap(b, () => pickChoice(b, c));
+    choicesEl.appendChild(b);
+  });
+}
+
+/* ============================================================
+   作答：連連看（拖曳拉線配對）
+   從一邊的項目按住拖出一條線，放到另一邊相同的數字上就連起來。
+   ============================================================ */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+let matchSvg = null;         // SVG 連線層
+let dragLine = null;         // 拖曳中的臨時線
+let dragFrom = null;         // 拖曳起點的項目 DOM
+let dragActive = false;
+
+function renderMatch() {
+  matchboxEl.classList.remove('hidden');
+  matchHintEl.classList.remove('hidden');
+  matchboxEl.innerHTML = '';
+  state.matchDone = 0;
+
+  // SVG 連線層（放最底，項目在上面）
+  matchSvg = document.createElementNS(SVG_NS, 'svg');
+  matchSvg.setAttribute('class', 'match-lines');
+  matchboxEl.appendChild(matchSvg);
+
+  const colL = document.createElement('div'); colL.className = 'match-col';
+  const colR = document.createElement('div'); colR.className = 'match-col';
+  state.q.left.forEach(item => colL.appendChild(makeMatchItem(item, 'L')));
+  state.q.right.forEach(item => colR.appendChild(makeMatchItem(item, 'R')));
+  matchboxEl.appendChild(colL);
+  matchboxEl.appendChild(colR);
+
+  dragLine = null; dragFrom = null; dragActive = false;
+}
+function makeMatchItem(item, side) {
+  const el = document.createElement('div');
+  el.className = 'match-item';
+  el.dataset.key = item.key;
+  el.dataset.side = side;
+  el.innerHTML = `<span class="dot"></span>${item.label}`;
+  el.addEventListener('pointerdown', (e) => onMatchDown(e, el));
+  return el;
+}
+
+// 取得某項目「連接點」（朝對側那一端的圓心）相對 matchbox 的座標
+function anchorOf(el) {
+  const box = matchboxEl.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const y = r.top + r.height / 2 - box.top;
+  const x = (el.dataset.side === 'L') ? (r.right - box.left) : (r.left - box.left);
+  return { x, y };
+}
+function getCss(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function makeLine(x1, y1, x2, y2, cls) {
+  const ln = document.createElementNS(SVG_NS, 'line');
+  ln.setAttribute('x1', x1); ln.setAttribute('y1', y1);
+  ln.setAttribute('x2', x2); ln.setAttribute('y2', y2);
+  ln.setAttribute('stroke', cls === 'done' ? getCss('--ok') : getCss('--accent'));
+  ln.setAttribute('stroke-width', '4');
+  ln.setAttribute('stroke-linecap', 'round');
+  if (cls === 'drag') ln.setAttribute('stroke-dasharray', '7 6');
+  matchSvg.appendChild(ln);
+  return ln;
+}
+function pointerXY(e) {
+  const box = matchboxEl.getBoundingClientRect();
+  return { x: e.clientX - box.left, y: e.clientY - box.top };
+}
+// 找出目前 pointer 底下的「異側、未完成」項目（用實際座標命中，比 elementFromPoint 更穩）
+function targetUnder(e, fromSide) {
+  const items = [...matchboxEl.querySelectorAll('.match-item')];
+  for (const it of items) {
+    if (it.dataset.side === fromSide) continue;
+    if (it.classList.contains('done')) continue;
+    const r = it.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return it;
+  }
+  return null;
+}
+
+function onMatchDown(e, el) {
+  if (state.solved || state.locking) return;
+  if (el.classList.contains('done')) return;
+  e.preventDefault();
+  unlockSounds();
+  dragActive = true;
+  dragFrom = el;
+  el.classList.add('drag');
+  el.setPointerCapture && el.setPointerCapture(e.pointerId);
+  const a = anchorOf(el);
+  const p = pointerXY(e);
+  dragLine = makeLine(a.x, a.y, p.x, p.y, 'drag');
+  // 綁在此 el 上的 move / up
+  el.addEventListener('pointermove', onMatchMove);
+  el.addEventListener('pointerup', onMatchUp);
+  el.addEventListener('pointercancel', onMatchUp);
+}
+function onMatchMove(e) {
+  if (!dragActive || !dragLine) return;
+  e.preventDefault();
+  const a = anchorOf(dragFrom);
+  const p = pointerXY(e);
+  dragLine.setAttribute('x1', a.x); dragLine.setAttribute('y1', a.y);
+  dragLine.setAttribute('x2', p.x); dragLine.setAttribute('y2', p.y);
+  // 高亮目前懸停的目標
+  matchboxEl.querySelectorAll('.match-item.target').forEach(t => t.classList.remove('target'));
+  const tgt = targetUnder(e, dragFrom.dataset.side);
+  if (tgt) tgt.classList.add('target');
+}
+function onMatchUp(e) {
+  if (!dragActive) return;
+  e.preventDefault();
+  const from = dragFrom;
+  from.removeEventListener('pointermove', onMatchMove);
+  from.removeEventListener('pointerup', onMatchUp);
+  from.removeEventListener('pointercancel', onMatchUp);
+  from.classList.remove('drag');
+  matchboxEl.querySelectorAll('.match-item.target').forEach(t => t.classList.remove('target'));
+
+  const tgt = (e.type === 'pointercancel') ? null : targetUnder(e, from.dataset.side);
+  // 移除臨時拖曳線
+  if (dragLine && dragLine.parentNode) dragLine.parentNode.removeChild(dragLine);
+  dragLine = null;
+  dragActive = false;
+  dragFrom = null;
+
+  if (!tgt) return;                       // 沒放到任何目標 → 取消
+  if (tgt.dataset.key === from.dataset.key) {
+    // 配對成功：畫一條固定綠線，兩端標記完成
+    from.classList.add('done'); tgt.classList.add('done');
+    const a = anchorOf(from), b = anchorOf(tgt);
+    makeLine(a.x, a.y, b.x, b.y, 'done');
+    state.matchDone++;
+    playSound('ding');
+    if (state.matchDone >= state.q.left.length) {
+      state.locking = true;
+      setFeedback('全部連好了！', 'ok');
+      setTimeout(() => { state.qNum++; if (state.qNum >= SET_SIZE) finishSet(); else showQuestion(); }, 750);
+    }
+  } else {
+    // 配錯：目標閃紅
+    playSound('eoh');
+    tgt.classList.add('miss');
+    setFeedback('這兩個不一樣，再看看', 'no');
+    setTimeout(() => tgt.classList.remove('miss'), 500);
+  }
+}
+
+/* ============================================================
+   作答：選擇題
+   ============================================================ */
+function pickChoice(btn, choiceObj) {
+  if (state.solved || state.locking) return;
+  if (choiceObj.correct) {
+    btn.classList.add('ok');
+    lockChoices();
+    onCorrect();
+  } else {
+    playSound('eoh');
+    btn.classList.add('no', 'disabled');
+    setFeedback('再想想看', 'no');
+  }
+}
+function lockChoices() {
+  state.locking = true;
+  choicesEl.querySelectorAll('.choice').forEach(b => b.classList.add('disabled'));
+}
+
+/* ============================================================
+   作答：輸入題（數字鍵盤）
+   ============================================================ */
+function updateAnswer() {
+  if (state.input === '') { answerVal.textContent = '?'; answerVal.className = 'val empty'; }
+  else { answerVal.textContent = withCommas(parseInt(state.input, 10)); answerVal.className = 'val filled'; }
+}
+function appendDigit(d) {
+  unlockSounds();
+  if (state.solved || state.locking) return;
+  if (state.input.length >= 8) return;
+  if (state.input === '' && d === 0) return;   // 不允許前導 0
+  state.input += String(d);
+  updateAnswer();
+}
+function backspace() {
+  if (state.solved || state.locking) return;
+  state.input = state.input.slice(0, -1);
+  updateAnswer();
+}
+function submitInput() {
+  unlockSounds();
+  if (state.solved || state.locking) return;
+  if (state.input === '') { setFeedback('先輸入答案', ''); return; }
+  if (state.input === state.q.answer) {
+    onCorrect();
+  } else {
+    playSound('eoh');
+    setFeedback('再試試看', 'no');
+    state.input = '';
+    updateAnswer();
+  }
+}
+function setPadEnabled(on) { padEl.querySelectorAll('button').forEach(b => b.disabled = !on); }
+
+/* ============================================================
+   答對 → 換題 / 過關
+   ============================================================ */
+function onCorrect() {
+  playSound('ding');
+  state.solved = true;
+  state.locking = true;
+  setFeedback('答對了！', 'ok');
+  setPadEnabled(false);
+  setTimeout(() => {
+    state.qNum++;
+    if (state.qNum >= SET_SIZE) finishSet();
+    else showQuestion();
+  }, 850);
+}
+
+function setFeedback(text, kind) {
+  feedbackEl.textContent = text || '';
+  feedbackEl.className = 'feedback' + (kind ? ' ' + kind : '');
+}
+
+/* ============================================================
+   過關慶祝（仿 area）
+   ============================================================ */
+const CELE_EMOJIS = ['⭐','✨','🎉','🌟','🎊','🌸'];
+function renderCeleSparkles() {
+  const el = $('celeSparkles');
+  el.innerHTML = '';
+  const spots = [
+    [10,16],[86,20],[20,72],[80,76],[50,10],[8,46],
+    [92,50],[42,88],[66,90],[30,30],[72,34],[16,60],
+  ];
+  spots.forEach(([left, top], i) => {
+    const s = document.createElement('span');
+    s.textContent = CELE_EMOJIS[i % CELE_EMOJIS.length];
+    s.style.left = left + '%';
+    s.style.top = top + '%';
+    s.style.animationDelay = (i * 0.12 % 1.2) + 's';
+    el.appendChild(s);
+  });
+}
+const CELE_DURATION = 3200;
+function finishSet() {
+  playSound('cheer');
+  renderCeleSparkles();
+  celebrate.classList.remove('fade');
+  celebrate.classList.add('show');
+  const img = celebrate.querySelector('.cele-img');
+  if (img) { img.style.animation = 'none'; void img.offsetWidth; img.style.animation = ''; }
+  setTimeout(() => celebrate.classList.add('fade'), CELE_DURATION - 500);
+  setTimeout(() => {
+    celebrate.classList.remove('show', 'fade');
+    goHome();
+  }, CELE_DURATION);
+}
+
+/* ============================================================
+   tap()：iPad 友善的點擊（沿用 area）
+   ============================================================ */
+function tap(el, handler) {
+  if (!el) return;
+  let armed = false;
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button != null && e.button !== 0) return;
+    armed = true;
+  });
+  el.addEventListener('pointercancel', () => { armed = false; });
+  el.addEventListener('pointerup', (e) => {
+    if (!armed) return;
+    armed = false;
+    const r = el.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+    e.preventDefault();
+    handler(e);
+  });
+  el.addEventListener('click', (e) => { if (e.detail === 0) handler(e); });
+}
+
+/* ============================================================
+   事件
+   ============================================================ */
+padEl.querySelectorAll('button[data-d]').forEach(b =>
+  tap(b, () => appendDigit(parseInt(b.dataset.d, 10))));
+tap($('delBtn'), backspace);
+tap($('sendBtn'), submitInput);
+tap($('homeBtn'), goHome);
+
+document.addEventListener('keydown', (e) => {
+  if (!gameEl.classList.contains('show')) return;
+  if (state.q && state.q.type !== 'input') return;
+  if (e.key >= '0' && e.key <= '9') appendDigit(parseInt(e.key, 10));
+  else if (e.key === 'Backspace') backspace();
+  else if (e.key === 'Enter') submitInput();
+});
+
+/* ============================================================
+   啟動
+   ============================================================ */
+(function preloadCele(){ const im = new Image(); im.src = 'assets/images/celebration.png'; })();
+renderHome();
+rollDemoNumber();
+</script>
+</body>
+</html>
