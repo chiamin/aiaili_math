@@ -343,6 +343,39 @@
     line-height: 1.5; padding: 0.9rem 0.4rem;
   }
 
+  /* ────────────────────────────────────────────
+     iPad 橫向：只有「輸入題」需要把數字鍵盤移到右欄（否則鍵盤底部會被切）。
+     選擇題／連連看本來就不高，維持置中即可（分欄反而變擠、數字會換行）。
+     直向完全不受影響。
+     ──────────────────────────────────────────── */
+  @media (orientation: landscape) {
+    /* 只有輸入題：左右分欄（題目在左、鍵盤在右）。topbar 固定頂部，
+       兩欄用上下 auto 邊距在剩餘空間垂直置中。 */
+    #game.qt-input.show {
+      flex-flow: row wrap;
+      align-content: flex-start;
+    }
+    #game.qt-input.show .topbar { flex: 0 0 100%; order: 0; }
+    #game.qt-input.show .stage {
+      flex: 1 1 50%; order: 1; max-width: 50%;
+      justify-content: center; padding: 0.3rem 1rem;
+      margin-top: auto; margin-bottom: auto;   /* 與鍵盤一起垂直置中 */
+    }
+    #game.qt-input.show .feedback { flex: 0 0 100%; order: 3; height: 1.4rem; }
+    #game.qt-input.show .keypad-area {
+      flex: 1 1 50%; order: 2; max-width: 24rem;
+      align-self: center; justify-content: center;
+      margin-top: auto; margin-bottom: auto;
+    }
+    /* 橫向時鍵盤按鈕矮一點，更省高度 */
+    #game.qt-input.show .pad button { height: 3rem; font-size: 1.5rem; }
+    #game.qt-input.show .answer-box .val { font-size: 2rem; }
+
+    /* 選擇題／連連看：維持置中單欄，但整體垂直置中、不要偏上 */
+    #game.qt-choice.show .stage,
+    #game.qt-match.show .stage { justify-content: center; }
+  }
+
   /* 連連看：左右兩列，中間留大空隙讓使用者拖曳拉線連起來 */
   .matchbox {
     position: relative;                 /* 供 SVG 連線層絕對定位 */
@@ -1205,6 +1238,10 @@ function showQuestion() {
   matchboxEl.classList.add('hidden');
   matchHintEl.classList.add('hidden');
   keypadArea.classList.add('hidden');
+
+  // 標記目前題型（橫向版面用：只有輸入題需要左右分欄放鍵盤）
+  gameEl.classList.remove('qt-input', 'qt-choice', 'qt-match');
+  gameEl.classList.add('qt-' + state.q.type);
 
   if (state.q.type === 'input') {
     keypadArea.classList.remove('hidden');
