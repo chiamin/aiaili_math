@@ -510,13 +510,18 @@ for (const name of Object.keys(SOUND_FILES))
   for (let i = 0; i < POOL_SIZE; i++) pools[name].push(makeElement(name));
 
 let audioUnlocked = false, unlockInFlight = false;
+// iOS 要求「在使用者手勢內真的播一次聲音」才會解鎖 audio channel，
+// 之後非手勢時機的音效（答對 850ms 後的 ding、過關的 cheer）才放得出來。
+// 關鍵：解鎖那次播放不能 muted——靜音播放 iOS 不算真解鎖，會造成
+// 「按鈕當下有聲、但延遲播放的答對/過關音效沒聲」（arithmetic 踩過這個坑，
+// 拿掉 muted 後解決）。這裡照 arithmetic：用一次真實（不靜音）的 play 來解鎖。
 function unlockSounds() {
   if (audioUnlocked || unlockInFlight) return;
   unlockInFlight = true;
   const dummy = new Audio(SOUND_BASE + SOUND_FILES.ding);
-  dummy.muted = true;
-  dummy.play().then(() => { audioUnlocked = true; unlockInFlight = false; })
-              .catch(() => { unlockInFlight = false; });
+  dummy.play()
+    .then(() => { audioUnlocked = true; unlockInFlight = false; })
+    .catch(() => { unlockInFlight = false; });
 }
 const uh = () => unlockSounds();
 document.addEventListener('touchstart', uh, { capture: true, passive: true });
