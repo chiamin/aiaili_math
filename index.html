@@ -30,6 +30,10 @@
     /* 根字級綁定 frame 高度，讓版面在任何視窗都等比縮放（同 area 的作法） */
     font-size: calc(min(100vh, 133.333vw) * 0.015625);
   }
+  /* 橫向：舞台填滿整個視窗，根字級改綁視窗高度（讓內容用滿橫向空間） */
+  @media (orientation: landscape) {
+    html { font-size: calc(100vh * 0.017); }
+  }
   html, body {
     margin: 0; padding: 0; height: 100%;
     font-family: "Inter", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
@@ -47,7 +51,7 @@
     font-family: inherit;
   }
 
-  /* 固定 iPad 直向 3:4 舞台 */
+  /* 直向：固定 iPad 3:4 舞台，置中 */
   #frame {
     position: absolute; inset: 0; margin: auto;
     width:  min(100vw, 75vh);
@@ -55,6 +59,10 @@
     background: var(--bg);
     overflow: hidden;
     box-shadow: 0 0 0 1px rgba(0,0,0,.05);
+  }
+  /* 橫向：舞台填滿整個視窗，用滿橫向空間 */
+  @media (orientation: landscape) {
+    #frame { width: 100vw; height: 100vh; }
   }
 
   /* ────────────────────────────────────────────
