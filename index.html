@@ -351,6 +351,34 @@
     line-height: 1.5; padding: 0.9rem 0.4rem;
   }
 
+  /* 數線題：一條水平線 + 兩端刻度 + 幾個候選點（A/B/C/D） */
+  .numline {
+    position: relative;
+    margin: 1.6rem 0.5rem 2.2rem;
+    height: 3.2rem;
+  }
+  .numline .axis {
+    position: absolute; left: 0; right: 0; top: 1.2rem;
+    height: 3px; background: var(--accent); border-radius: 2px;
+  }
+  .numline .tick {
+    position: absolute; top: 0.7rem; width: 2px; height: 1rem;
+    background: var(--muted); transform: translateX(-1px);
+  }
+  .numline .tick-label {
+    position: absolute; top: 2rem; font-size: 0.9rem; color: var(--muted);
+    transform: translateX(-50%); white-space: nowrap;
+  }
+  .numline .pt {
+    position: absolute; top: 0.55rem; transform: translateX(-50%);
+    width: 1.3rem; height: 1.3rem; border-radius: 50%;
+    background: #fff; border: 3px solid var(--accent);
+  }
+  .numline .pt-label {
+    position: absolute; top: -0.9rem; transform: translateX(-50%);
+    font-size: 1.1rem; font-weight: 800; color: var(--accent);
+  }
+
   /* ────────────────────────────────────────────
      iPad 橫向：只有「輸入題」需要把數字鍵盤移到右欄（否則鍵盤底部會被切）。
      選擇題／連連看本來就不高，維持置中即可（分欄反而變擠、數字會換行）。
@@ -828,7 +856,67 @@ function build_countwan() {
   };
 }
 
-const BUILDERS_1_1 = [build_cn2num, build_num2cn, build_place, build_countwan];
+// 相鄰數／數列填空：給一串連續數，中間或結尾挖一格讓孩子填。
+// 刻意讓序列跨過「滿位進位」（如 …9998, 9999, □），考進位理解。
+//   scale：每一步的間隔（1／10／100／1000／10000），maxN：數值上限
+function build_sequence(scale, maxN) {
+  const step = scale || 1;
+  const cap = maxN || 99999;
+  // 起點：挑一個「填空處會跨進位」的位置——讓序列包含 ...X999→(X+1)000 之類
+  let start;
+  for (let t = 0; t < 40; t++) {
+    start = rint(2, Math.floor(cap / step) - 4) * step;
+    break;
+  }
+  // 產生 4 格連續數，挖掉其中一格（不挖第一格，讓孩子有前文可推）
+  const seq = [start, start + step, start + 2 * step, start + 3 * step];
+  const blank = rint(1, 3);
+  const answer = seq[blank];
+  const shown = seq.map((v, i) => i === blank ? '□' : withCommas(v));
+  return {
+    type: 'input',
+    tag: '數列填空',
+    promptHtml: `照順序，□ 裡是多少？<br><span class="big" style="font-size:1.7rem">${shown.join('、')}</span>`,
+    unit: '',
+    answer: String(answer),
+  };
+}
+
+// 數的組成：問「某個數是由幾個△、幾個▽…組成」，取其中一個位問。
+// 例如 74025 → 「十萬位」其實不存在，取存在的非零位問「7 在萬位，是 7 個萬」。
+//   這裡採「某數是由 ? 個(某單位)組成」——選擇題，考位值綜合。
+function build_composeOf(genFn) {
+  let n, idx, dig;
+  for (let t = 0; t < 60; t++) {
+    n = genFn();
+    const len = String(n).length;
+    idx = rint(0, len - 1);
+    dig = Math.floor(n / Math.pow(10, idx)) % 10;
+    if (dig !== 0) break;
+  }
+  const unitName = PLACE_NAMES[idx];              // 個十百千萬…
+  const correct = dig;                            // 答案：dig 個(unitName)
+  // 干擾：其他非零位的數字、或 dig±1
+  const wrong = new Set([correct]);
+  const s = String(n);
+  for (const ch of s) { const d = parseInt(ch, 10); if (d !== 0) wrong.add(d); }
+  wrong.add((dig % 9) + 1);
+  const opts = shuffle([...wrong]).slice(0, 4);
+  if (!opts.includes(correct)) opts[0] = correct;
+  return {
+    type: 'choice',
+    tag: '數的組成',
+    promptHtml: `<span class="big">${withCommas(n)}</span>裡面，有幾個「${unitName}」？`,
+    choices: shuffle(opts).map(v => ({ label: String(v) + ' 個', correct: v === correct })),
+    cols: 2,
+  };
+}
+function build_compose_1_1() { return build_composeOf(() => genNumber(rint(4, 6))); }
+function build_compose_1_2() { return build_composeOf(() => genNumber(rint(6, 8))); }
+function build_sequence_1_1() { return build_sequence(choice([1, 10, 100, 1000]), 99999); }
+function build_sequence_1_2() { return build_sequence(choice([1000, 10000, 100000]), 99000000); }
+
+const BUILDERS_1_1 = [build_cn2num, build_num2cn, build_place, build_countwan, build_compose_1_1, build_sequence_1_1, build_numline_1_1];
 
 // 組出一整組題（盡量各題型輪流、不連續重複同一數）
 function buildSet_1_1() {
@@ -1023,7 +1111,7 @@ function build_match() {
   };
 }
 
-const BUILDERS_1_2 = [build_cn2num2, build_num2cn2, build_place2, build_compose, build_compare, build_match];
+const BUILDERS_1_2 = [build_cn2num2, build_num2cn2, build_place2, build_compose, build_compose_1_2, build_sequence_1_2, build_compare, build_match];
 function buildSet_1_2() {
   const set = [];
   const order = [];
@@ -1072,6 +1160,41 @@ function build_addsub() {
   };
 }
 
+// 數線位置：畫一條 0→max 的數線，標 A/B/C/D 四個點，問某數在哪個點。
+// 目標數對齊其中一個點；干擾點分散在數線其他位置。考「數在數線上的相對位置」。
+function build_numline(max) {
+  const cap = max || 100000;
+  const step = cap / 10;                        // 分 10 格
+  // 目標數：落在某個整格刻度上（好判斷），非 0、非 max
+  const targetIdx = rint(2, 8);
+  const target = targetIdx * step;
+  // 四個候選點的位置（格 index），含 target，其餘不重複
+  const idxSet = new Set([targetIdx]);
+  let guard = 0;
+  while (idxSet.size < 4 && guard < 50) { guard++; idxSet.add(rint(1, 9)); }
+  const idxs = shuffle([...idxSet]);
+  const labels = ['A', 'B', 'C', 'D'];
+  // 建數線 HTML：軸 + 兩端刻度(0 與 max) + 四個點
+  let html = '<div class="numline"><div class="axis"></div>';
+  html += `<span class="tick" style="left:0"></span><span class="tick-label" style="left:0">0</span>`;
+  html += `<span class="tick" style="left:100%"></span><span class="tick-label" style="left:100%">${withCommas(cap)}</span>`;
+  const pts = idxs.map((ix, i) => {
+    const pct = (ix / 10) * 100;
+    html += `<span class="pt" style="left:${pct}%"></span><span class="pt-label" style="left:${pct}%">${labels[i]}</span>`;
+    return { label: labels[i], correct: ix === targetIdx };
+  });
+  html += '</div>';
+  return {
+    type: 'choice',
+    tag: '數線位置',
+    promptHtml: `<span class="big">${withCommas(target)}</span>在數線上的哪一點？${html}`,
+    choices: pts.map(p => ({ label: p.label, correct: p.correct })),
+    cols: 2,
+  };
+}
+function build_numline_1_1() { return build_numline(choice([10000, 100000])); }
+function build_numline_1_3() { return build_numline(choice([100000, 1000000, 10000000])); }
+
 // 三個數比大小：選出最大（或最小）的那個。混用國字與數字增加辨識難度。
 function build_ordering() {
   const pickMax = choice([true, false]);
@@ -1097,7 +1220,7 @@ function build_ordering() {
   };
 }
 
-const BUILDERS_1_3 = [build_compare, build_addsub, build_ordering, build_match];
+const BUILDERS_1_3 = [build_compare, build_addsub, build_ordering, build_match, build_numline_1_3];
 function buildSet_1_3() {
   const set = [];
   const order = [];
