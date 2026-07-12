@@ -648,7 +648,8 @@ function numberToCn(n) {
 }
 
 // 阿拉伯數字加分節逗號（每三位）——用於顯示比較
-function withCommas(n) { return n.toLocaleString('en-US'); }
+// 顯示阿拉伯數字：不加千分位逗點（小孩不用被逗點干擾，直接看數字）
+function withCommas(n) { return String(n); }
 
 /* ============================================================
    小節資料
@@ -659,7 +660,7 @@ const LESSONS = [
   { id: '1-3', title: '比較與加減',   desc: '比大小、整萬整億加減',   locked: false },
 ];
 
-const SET_SIZE = 8;   // 每組題數
+const SET_SIZE = 5;   // 每組題數
 
 /* ============================================================
    1-1 出題引擎（十萬以內：1 ~ 999999）
